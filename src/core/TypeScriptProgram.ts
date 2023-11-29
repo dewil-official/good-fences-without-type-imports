@@ -34,9 +34,28 @@ export default class TypeScriptProgram implements SourceFileProvider {
     }
 
     // Get all imports from a given file
-    getImportsForFile(fileName: NormalizedPath) {
-        let fileInfo = ts.preProcessFile(ts.sys.readFile(fileName), true, true);
-        return fileInfo.importedFiles.map(importedFile => importedFile.fileName);
+    getImportsForFile(fileName: string): string[] {
+        const sourceFile = ts.createSourceFile(
+            fileName,
+            ts.sys.readFile(fileName)!,
+            ts.ScriptTarget.Latest
+        );
+
+        const imports: string[] = [];
+
+        function visit(node: ts.Node) {
+            if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly) {
+                const moduleSpecifier = node.moduleSpecifier;
+                if (ts.isStringLiteral(moduleSpecifier)) {
+                    imports.push(moduleSpecifier.text);
+                }
+            }
+            ts.forEachChild(node, visit);
+        }
+
+        visit(sourceFile);
+
+        return imports;
     }
 
     // Resolve an imported module
